@@ -2,16 +2,13 @@
 from ctypes import *
 import os
 import numpy as np
-# import
+# from matplotlib import pyplot as plt
+import matplotlib
 
-print(os.getcwd())
 # lib = WinDLL("C:\\Henry\\PythonProjects\\CED\\CEDS64ML\\x64\\ceds64int.dll")
+
 ced_lib = LibraryLoader(WinDLL).LoadLibrary("C:\\Henry\\PythonProjects\\CED\\CEDS64ML\\x86\\ceds64int.dll")
 
-
-# s = "Hello, World"
-# c_s = c_char_p(s)
-print(ced_lib)
 
 ced_lib.S64Open.argtypes = [POINTER(c_char)]
 ced_lib.S64Close.argtypes = [c_int]
@@ -51,9 +48,9 @@ mask = np.ones((256, 4)).astype('int8')
 mask[0:wave_mark, 0] = 0
 mask[wave_mark+1:, 0] = 0
 
-mask = mask.ctypes.data_as(POINTER(c_int))
+m_pointer = mask.ctypes.data_as(POINTER(c_int))
 ced_lib.S64SetMaskCodes.argtypes = [c_int, POINTER(c_int)]
-ced_lib.S64SetMaskCodes(mask_handle, mask)
+ced_lib.S64SetMaskCodes(mask_handle, m_pointer)
 
 spike_channel = 3
 
@@ -90,6 +87,27 @@ print('spike times loaded')
 print('s_pointer = ' + str(s_pointer.contents))
 print('fhand  =  ' + str(fhand))
 print(np.max(spike_data))
+
+#load continuous data
+continuous_channel = 2
+ced_lib.S64ReadWaveF.argtypes = [c_int, c_int, POINTER(c_float), c_int,
+                                 c_longlong, c_longlong, POINTER(c_longlong), c_int]
+
+#create a numpy array of the correct value type
+end_tick_int = end_tick.value
+continuous_data = -1*np.ones((end_tick_int,), dtype=np.float)
+
+#create a pointer to the array that will hold the spike data
+c_pointer = continuous_data.ctypes.data_as(POINTER(c_float))
+
+start_read = c_longlong(0)
+first_val = c_longlong(0)
+p_val = pointer(first_val)
+ced_lib.S64ReadWaveF(fhand, continuous_channel, c_pointer, end_tick_int, start_read, end_tick, p_val, mask_handle)
+
+plt(continuous_data)
+
+print('continuous data  = ' + str(max(continuous_data)))
 result = ced_lib.S64Close(fhand)
 print(result)
 
